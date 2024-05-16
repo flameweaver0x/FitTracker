@@ -5,13 +5,15 @@ import (
     "log"
     "net/http"
     "os"
+    "sync"
+    "time"
     "github.com/gorilla/mux"
     "github.com/joho/godotenv"
 )
 
 type Workout struct {
-    ID     string `json:"id"`
-    Title  string `json:"title"`
+    ID        string `json:"id"`
+    Title     string `json:"title"`
     Exercises []Exercise `json:"exercises"`
 }
 
@@ -29,8 +31,8 @@ type Goal struct {
 }
 
 type PersonalTrainer struct {
-    ID       string `json:"id"`
-    Name     string `json:"name"`
+    ID         string `json:"id"`
+    Name       string `json:"name"`
     Speciality string `json:"speciality"`
 }
 
@@ -38,19 +40,48 @@ var workouts []Workout
 var goals []Goal
 var personalTrainers []PersonalTrainer
 
+// Cache data structures and synchronization mechanism
+var (
+    workoutCache        []byte
+    goalsCache          []byte
+    personalTrainersCache []byte
+    cacheMutex          sync.Mutex
+    cacheDuration       = 10 * time.Minute
+    lastCacheUpdateTime time.Time
+)
+
+func updateCache() {
+    cacheMutex.Lock()
+    defer cacheMutex.Unlock()
+
+    // Update cache if it's outdated
+    if time.Since(lastCacheUpdateTime) > cacheDuration {
+        workoutCache, _ = json.Marshal(workouts)
+        goalsCache, _ = json.Marshal(goals)
+        personalTrainersCache, _ = json.Marshal(personalTrainers)
+        lastCacheUpdateTime = time.Now()
+    }
+}
+
 func getWorkouts(w http.ResponseWriter, r *http.Request) {
+    updateCache()
+    
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(workouts)
+    w.Write(workoutCache) // Use cached data
 }
 
 func getGoals(w http.ResponseWriter, r *http.Request) {
+    updateCache()
+    
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(goals)
+    w.Write(goalsCache) // Use cached data
 }
 
 func getPersonalTrainers(w http.ResponseWriter, r *http.Request) {
+    updateCache()
+    
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(personalTrainers)
+    w.Write(personalTrainersCache) // Use cached data
 }
 
 func main() {
