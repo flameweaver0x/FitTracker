@@ -3,31 +3,34 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'r
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
-interface Workout {
+interface IWorkout {
   date: Date;
-  duration: number; 
-  intensity: number; 
+  duration: number;
+  intensity: number;
 }
 
 const FitnessTracker: React.FC = () => {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [newWorkout, setNewWorkout] = useState<Workout>({ date: new Date(), duration: 0, intensity: 0 });
-  const [fitnessGoal, setFitnessGoal] = useState<number>(0);
+  const [workoutLog, setWorkoutLog] = useState<IWorkout[]>([]);
+  const [workoutForm, setWorkoutForm] = useState<IWorkout>({ date: new Date(), duration: 0, intensity: 0 });
+  const [goalMinutes, setGoalMinutes] = useState<number>(0);
 
-  const handleNewWorkoutChange = (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>, field: string) => {
-    setNewWorkout({ ...newWorkout, [field]: field === "date" ? new Date(e.target.value) : parseInt(e.target.value) });
+  const handleWorkoutInputChange = (event: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>, fieldName: string) => {
+    setWorkoutForm({
+      ...workoutForm,
+      [fieldName]: fieldName === "date" ? new Date(event.target.value) : parseInt(event.target.value)
+    });
   };
 
-  const logWorkout = () => {
-    if (newWorkout.duration > 0 && newWorkout.intensity > 0) {
-      setWorkouts([...workouts, newWorkout]);
-      setNewWorkout({ date: new Date(), duration: 0, intensity: 0 }); 
+  const addWorkoutToLog = () => {
+    if (workoutForm.duration > 0 && workoutForm.intensity > 0) {
+      setWorkoutLog([...workoutLog, workoutForm]);
+      setWorkoutForm({ date: new Date(), duration: 0, intensity: 0 });
     }
   };
 
-  const totalDuration = workouts.reduce((acc, workout) => acc + workout.duration, 0);
+  const accumulatedDuration = workoutLog.reduce((total, current) => total + current.duration, 0);
 
-  const isGoalAchieved = totalDuration >= fitnessGoal;
+  const hasAchievedGoal = accumulatedDuration >= goalMinutes;
 
   return (
     <div>
@@ -35,26 +38,26 @@ const FitnessTracker: React.FC = () => {
       <div>
         <label>
           Select Date:
-          <DatePicker selected={newWorkout.date} onChange={(date: Date) => setNewWorkout({ ...newWorkout, date })} />
+          <DatePicker selected={workoutForm.date} onChange={(date: Date) => setWorkoutForm({ ...workoutForm, date })} />
         </label>
         <label>
           Duration (in minutes):
-          <input type="number" value={newWorkout.duration} onChange={(e) => handleNewWorkoutChange(e, 'duration')} />
+          <input type="number" value={workoutForm.duration} onChange={(event) => handleWorkoutInputChange(event, 'duration')} />
         </label>
         <label>
           Intensity (1-10):
-          <input type="number" min="1" max="10" value={newWorkout.intensity} onChange={(e) => handleNewWorkoutChange(e, 'intensity')} />
+          <input type="number" min="1" max="10" value={workoutForm.intensity} onChange={(event) => handleWorkoutInputChange(event, 'intensity')} />
         </label>
-        <button onClick={logWorkout}>Log Workout</button>
+        <button onClick={addWorkoutToLog}>Log Workout</button>
       </div>
       <div>
         <label>
           Set your fitness goal (in minutes):
-          <input type="number" value={fitnessGoal} onChange={(e) => setFitnessGoal(parseInt(e.target.value))} />
+          <input type="number" value={goalMinutes} onChange={(event) => setGoalMinutes(parseInt(event.target.value))} />
         </label>
-        {isGoalAchieved && <div>Congratulations! You've achieved your goal!</div>}
+        {hasAchievedGoal && <div>Congratulations! You've achieved your goal!</div>}
       </div>
-      <LineChart width={500} height={300} data={workouts}>
+      <LineChart width={500} height={300} data={workoutLog}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="date" />
         <YAxis />
