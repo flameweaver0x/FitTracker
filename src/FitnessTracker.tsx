@@ -11,8 +11,27 @@ interface IWorkout {
 
 const FitnessTracker: React.FC = () => {
   const [workoutLog, setWorkoutLog] = useState<IWorkout[]>([]);
+  const [filteredWorkouts, setFilteredWorkouts] = useState<IWorkout[]>([]);
   const [workoutForm, setWorkoutForm] = useState<IWorkout>({ date: new Date(), duration: 0, intensity: 0 });
   const [goalMinutes, setGoalMinutes] = useState<number>(0);
+  const [startDate, setStartDate] = useState<Date | null>(new Date());
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
+
+  useEffect(() => {
+    filterWorkoutsByDateRange();
+  }, [workoutLog, startDate, endDate]);
+
+  const filterWorkoutsByDateRange = () => {
+    if (!startDate || !endDate) {
+      setFilteredWorkouts(workoutLog);
+      return;
+    }
+    const filtered = workoutLog.filter(workout => {
+      const workoutDate = new Date(workout.date).getTime();
+      return workoutDate >= new Date(startDate).getTime() && workoutDate <= new Date(endDate).getTime();
+    });
+    setFilteredWorkouts(filtered);
+  };
 
   const handleWorkoutInputChange = (event: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>, fieldName: string) => {
     setWorkoutForm({
@@ -28,7 +47,7 @@ const FitnessTracker: React.FC = () => {
     }
   };
 
-  const accumulatedDuration = workoutLog.reduce((total, current) => total + current.duration, 0);
+  const accumulatedDuration = filteredWorkouts.reduce((total, current) => total + current.duration, 0);
 
   const hasAchievedGoal = accumulatedDuration >= goalMinutes;
 
@@ -57,7 +76,18 @@ const FitnessTracker: React.FC = () => {
         </label>
         {hasAchievedGoal && <div>Congratulations! You've achieved your goal!</div>}
       </div>
-      <LineChart width={500} height={300} data={workoutLog}>
+      <div>
+        <label>
+          Start Date:
+          <DatePicker selected={startDate} onChange={(date: Date) => setStartDate(date)} />
+        </label>
+        <label>
+          End Date:
+          <DatePicker selected={endDate} onChange={(date: Date) => setEndDate(date)} />
+        </label>
+        <button onClick={filterWorkoutsByDateRange}>Filter logs</button>
+      </div>
+      <LineChart width={500} height={300} data={filteredWorkouts}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="date" />
         <YAxis />
