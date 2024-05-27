@@ -10,46 +10,48 @@ interface Workout {
 }
 
 const FitnessTracker: React.FC = () => {
-  const [workoutHistory, setWorkoutHistory] = useState<Workout[]>([]);
-  const [visibleWorkouts, setVisibleWorkouts] = useState<Workout[]>([]);
-  const [currentWorkoutEntry, setCurrentWorkoutEntry] = useState<Workout>({ date: new Date(), duration: 0, intensity: 0 });
-  const [fitnessGoalMinutes, setFitnessGoalMinutes] = useState<number>(0);
-  const [filterStartDate, setFilterStartDate] = useState<Date | null>(new Date());
-  const [filterEndDate, setFilterEndDate] = useState<Date | null>(new Date());
+  const [workoutLog, setWorkoutLog] = useState<Workout[]>([]);
+  const [displayedWorkouts, setDisplayedWorkouts] = useState<Workout[]>([]);
+  const [newWorkout, setNewWorkout] = useState<Workout>({ date: new Date(), duration: 0, intensity: 0 });
+  const [goalInMinutes, setGoalInMinutes] = useState<number>(0);
+  const [startDateFilter, setStartDateFilter] = useState<Date | null>(new Date());
+  const [endDateFilter, setEndDateFilter] = useState<Date | null>(new Date());
 
   useEffect(() => {
-    applyDateRangeFilter();
-  }, [workoutHistory, filterStartDate, filterEndDate]);
+    filterWorkoutsByDate();
+  }, [workoutLog, startDateFilter, endDateFilter]);
 
-  const applyDateRangeFilter = () => {
-    if (!filterStartDate || !filterEndDate) {
-      setVisibleWorkouts(workoutHistory);
+  const filterWorkoutsByDate = () => {
+    if (!startDateFilter || !endDateFilter) {
+      setDisplayedWorkouts(workoutLog);
       return;
     }
-    const filteredWorkouts = workoutHistory.filter(workout => {
+    const filtered = workoutLog.filter(workout => {
       const workoutDate = new Date(workout.date).getTime();
-      return workoutDate >= new Date(filterStartDate).getTime() && workoutDate <= new Date(filterEndDate).getTime();
+      return workoutDate >= new Date(startDateFilter).getTime() && workoutDate <= new Date(endDateFilter).getTime();
     });
-    setVisibleWorkouts(filteredWorkouts);
+    setDisplayedWorkouts(filtered);
   };
 
-  const handleWorkoutChange = (event: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>, fieldName: string) => {
-    setCurrentWorkoutEntry({
-      ...currentWorkoutEntry,
+  const handleInputChange = (
+    event: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>,
+    fieldName: string
+  ) => {
+    setNewWorkout({
+      ...newWorkworkout,
       [fieldName]: fieldName === "date" ? new Date(event.target.value) : parseInt(event.target.value)
     });
   };
 
-  const logNewWorkout = () => {
-    if (currentWorkoutEntry.duration > 0 && currentWorkoutEntry.intensity > 0) {
-      setWorkoutHistory([...workoutHistory, currentWorkoutEntry]);
-      setCurrentWorkoutEntry({ date: new Date(), duration: 0, intensity: 0 });
+  const addWorkoutToLog = () => {
+    if (newWorkout.duration > 0 && newWorkout.intensity > 0) {
+      setWorkoutLog([...workoutLog, newWorkout]);
+      setNewWorkout({ date: new Date(), duration: 0, intensity: 0 });
     }
   };
 
-  const totalDurationAchieved = visibleWorkouts.reduce((total, workout) => total + workout.duration, 0);
-
-  const isGoalAchieved = totalDurationAchieved >= fitnessGoalMinutes;
+  const achievedDuration = displayedWorkouts.reduce((total, { duration }) => total + duration, 0);
+  const hasMetGoal = achievedDuration >= goalInMinutes;
 
   return (
     <div>
@@ -57,37 +59,37 @@ const FitnessTracker: React.FC = () => {
       <div>
         <label>
           Select Date:
-          <DatePicker selected={currentWorkoutEntry.date} onChange={(date: Date) => setCurrentWorkoutEntry({ ...currentWorkoutEntry, date })} />
+          <DatePicker selected={newWorkout.date} onChange={(date: Date) => setNewWorkout({ ...newWorkout, date })} />
         </label>
         <label>
           Duration (in minutes):
-          <input type="number" value={currentWorkoutEntry.duration} onChange={(event) => handleWorkoutChange(event, 'duration')} />
+          <input type="number" value={newWorkout.duration} onChange={(event) => handleInputChange(event, 'duration')} />
         </label>
         <label>
           Intensity (1-10):
-          <input type="number" min="1" max="10" value={currentWorkoutEntry.intensity} onChange={(event) => handleWorkoutChange(event, 'intensity')} />
+          <input type="number" min="1" max="10" value={newWorkout.intensity} onChange={(event) => handleInputChange(event, 'intensity')} />
         </label>
-        <button onClick={logNewWorkout}>Log Workout</button>
+        <button onClick={addWorkoutToLog}>Log Workout</button>
       </div>
       <div>
         <label>
           Set your fitness goal (in minutes):
-          <input type="number" value={fitnessGoalMinutes} onChange={(event) => setFitnessGoalMinutes(parseInt(event.target.value))} />
+          <input type="number" value={goalInMinutes} onChange={(event) => setGoalInMinutes(parseInt(event.target.value))} />
         </label>
-        {isGoalAchieved && <div>Congratulations! You've achieved your goal!</div>}
+        {hasMetGoal && <div>Congratulations! You've achieved your goal!</div>}
       </div>
       <div>
         <label>
           Start Date:
-          <DatePicker selected={filterStartDate} onChange={(date: Date) => setFilterStartDate(date)} />
+          <DatePicker selected={startDateFilter} onChange={setStartDateFilter} />
         </label>
         <label>
           End Date:
-          <DatePicker selected={filterEndDate} onChange={(date: Date) => setFilterEndDate(date)} />
+          <DatePicker selected={endDateFilter} onChange={setEndDateFilter} />
         </label>
-        <button onClick={applyDateRangeFilter}>Filter Logs</button>
+        <button onClick={filterWorkoutsByDate}>Filter Logs</button>
       </div>
-      <LineChart width={500} height={300} data={visibleWorkouts}>
+      <LineChart width={500} height={300} data={displayedWorkouts}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="date" />
         <YAxis />
