@@ -14,56 +14,56 @@ interface Exercise {
   weight: number;
 }
 
-const useFitnessData = () => {
-  const [workoutHistory, setWorkoutHistory] = useState<Workout[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+const useWorkoutData = () => {
+  const [workoutLogs, setWorkoutLogs] = useState<Workout[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const baseURL = process.env.REACT_APP_BACKEND_URL;
+  const apiBaseUrl = process.env.REACT_APP_BACKEND_URL;
 
-  const fetchWorkoutHistory = async (): Promise<void> => {
-    setLoading(true);
+  const fetchWorkoutLogs = async (): Promise<void> => {
+    setIsLoading(true);
     try {
-      const { data } = await axios.get(`${baseURL}/workouts`);
-      setWorkoutHistory(data);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to fetch workout history');
-      setLoading(false);
+      const { data } = await axios.get(`${apiBaseUrl}/workouts`);
+      setWorkoutLogs(data);
+      setIsLoading(false);
+    } catch (error) {
+      setFetchError('Failed to fetch workout logs');
+      setIsLoading(false);
     }
   };
 
-  const updateExerciseLog = async (workoutId: string, exercise: Exercise): Promise<void> => {
+  const addExerciseToWorkout = async (workoutId: string, newExercise: Exercise): Promise<void> => {
     try {
-      await axios.post(`${baseURL}/workouts/${workoutId}/exercises`, exercise);
-      fetchWorkoutHistory();
-    } catch (err) {
-      setError('Failed to update exercise log');
+      await axios.post(`${apiBaseUrl}/workouts/${workoutId}/exercises`, newExercise);
+      fetchWorkoutLogs(); // Refresh the workout logs to include the newly added exercise
+    } catch (error) {
+      setFetchError('Failed to add exercise to workout log');
     }
   };
 
-  const fetchWorkoutRecommendations = async (): Promise<Workout[] | undefined> => {
+  const fetchRecommendedWorkouts = async (): Promise<Workout[] | undefined> => {
     try {
-      const { data } = await axios.get(`${baseURL}/recommendations`);
+      const { data } = await axios.get(`${apiBaseUrl}/recommendations`);
       return data;
-    } catch (err) {
-      setError('Failed to fetch workout recommendations');
+    } catch (error) {
+      setFetchError('Failed to fetch workout recommendations');
       return undefined;
     }
   };
 
   useEffect(() => {
-    fetchWorkoutHistory();
+    fetchWorkoutLogs();
   }, []);
 
   return {
-    workoutHistory,
-    fetchWorkoutHistory,
-    updateExerciseLog,
-    fetchWorkoutRecommendations,
-    loading,
-    error,
+    workoutLogs,
+    fetchWorkoutLogs,
+    addExerciseToWorkout,
+    fetchRecommendedWorkouts,
+    isLoading,
+    fetchError,
   };
 };
 
-export default useFitnessData;
+export default useWorkoutData;
