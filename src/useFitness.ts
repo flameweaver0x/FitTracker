@@ -21,25 +21,41 @@ const useWorkoutData = () => {
 
   const apiBaseUrl = process.env.REACT_APP_BACKEND_URL;
 
+  const handleLoadingState = (loading: boolean) => {
+    setIsLoading(loading);
+  };
+
+  const handleFetchError = (message: string) => {
+    setFetchError(message);
+    handleLoadingState(false);
+  };
+
+  const updateWorkoutLogs = (data: Workout[]) => {
+    setWorkoutLogs(data);
+    handleLoadingState(false);
+  };
+
   const fetchWorkoutLogs = async (): Promise<void> => {
-    setIsLoading(true);
+    handleLoadingState(true);
     try {
       const { data } = await axios.get(`${apiBaseUrl}/workouts`);
-      setWorkoutLogs(data);
-      setIsLoading(false);
+      updateWorkoutLogs(data);
     } catch (error) {
-      setFetchError('Failed to fetch workout logs');
-      setIsLoading(false);
+      handleFetchError('Failed to fetch workout logs');
     }
   };
 
   const addExerciseToWorkout = async (workoutId: string, newExercise: Exercise): Promise<void> => {
     try {
       await axios.post(`${apiBaseUrl}/workouts/${workoutId}/exercises`, newExercise);
-      fetchWorkoutLogs(); // Refresh the workout logs to include the newly added exercise
+      fetchWorkingLogsWrapper();
     } catch (error) {
-      setFetchError('Failed to add exercise to workout log');
+      handleFetchError('Failed to add exercise to workout log');
     }
+  };
+
+  const fetchWorkingLogsWrapper = async () => {
+    await fetchWorkoutLogs(); // Optionally, you can handle UI updates here if needed
   };
 
   const fetchRecommendedWorkouts = async (): Promise<Workout[] | undefined> => {
@@ -47,13 +63,13 @@ const useWorkoutData = () => {
       const { data } = await axios.get(`${apiBaseUrl}/recommendations`);
       return data;
     } catch (error) {
-      setFetchError('Failed to fetch workout recommendations');
+      handleFetchError('Failed to fetch workout recommendations');
       return undefined;
     }
   };
 
   useEffect(() => {
-    fetchWorkoutLogs();
+    fetchWorkingLogsWrapper();
   }, []);
 
   return {
