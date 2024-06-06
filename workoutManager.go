@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
 
 type WorkoutPlan struct {
-	ID      string    `json:"id"`
-	Date    time.Time `json:"date"`
+	ID        string     `json:"id"`
+	Date      time.Time  `json:"date"`
 	Exercises []Exercise `json:"exercises"`
-	Goal    string    `json:"goal"`
+	Goal      string     `json:"goal"`
 }
 
 type Exercise struct {
@@ -24,28 +23,23 @@ type Exercise struct {
 }
 
 type UserProgress struct {
-	UserID        string        `json:"user_id"`
+	UserID       string        `json:"user_id"`
 	WorkoutPlans []WorkoutPlan `json:"workout_plans"`
 }
 
 var usersProgress []UserProgress
 
 func main() {
-	// Example operations - should be replaced by actual API or CLI interactions in a real application
-
-	// Adding a new workout log for a user
+	// Example operations
 	newExercise := Exercise{Name: "Push-ups", Sets: 3, Reps: 15, Intensity: "Medium"}
 	newWorkoutPlan := WorkoutPlan{ID: "1", Date: time.Now(), Exercises: []Exercise{newExercise}, Goal: "Strength"}
 	AddWorkoutLog("user1", newWorkoutPlan)
 
-	// Updating a workout log
 	updatedExercise := Exercise{Name: "Push-ups", Sets: 4, Reps: 20, Intensity: "High"}
 	UpdateWorkoutLog("user1", "1", []Exercise{updatedExercise})
 
-	// Deleting a workout log
 	DeleteWorkoutLog("user1", "1")
 
-	// Suggesting a new workout plan based on user progress
 	newPlan := SuggestWorkoutPlan("user1")
 	fmt.Println("Suggested Plan: ", newPlan)
 }
@@ -54,12 +48,11 @@ func AddWorkoutLog(userID string, plan WorkoutPlan) error {
 	for i, userProgress := range usersProgress {
 		if userProgress.UserID == userID {
 			usersProgress[i].WorkoutPlans = append(usersProgress[i].WorkoutPlans, plan)
-			return nil
+			return saveToFile()
 		}
 	}
-	// User progress does not exist, create new
 	newUserProgress := UserProgress{
-		UserID:        userID,
+		UserID:       userID,
 		WorkoutPlans: []WorkoutPlan{plan},
 	}
 	usersProgress = append(usersProgress, newUserProgress)
@@ -95,36 +88,41 @@ func DeleteWorkoutLog(userID, planID string) error {
 }
 
 func SuggestWorkoutPlan(userID string) *WorkoutPlan {
-	// Simplified logic for suggesting a plan. Should be replaced with a more complex algorithm.
 	for _, userProgress := range usersProgress {
 		if userProgress.UserID == userID {
-			// Assuming the last workout plan is the most recent
 			if len(userProgress.WorkoutPlans) > 0 {
 				lastPlan := userProgress.WorkoutPlans[len(userProgress.WorkoutPlans)-1]
 				suggestedPlan := WorkoutPlan{
-					ID:      fmt.Sprintf("%s-new", lastPlan.ID),
-					Date:    time.Now(),
+					ID:        fmt.Sprintf("%s-new", lastPlan.ID),
+					Date:      time.Now(),
 					Exercises: increaseIntensity(lastPlan.Exercises),
-					Goal:    lastPlan.Goal,
+					Goal:      lastPlan.Goal,
 				}
 				return &suggestedPlan
 			}
 		}
 	}
-	return nil // No plan found for suggestion
+	return nil
 }
 
 func increaseIntensity(exercises []Exercise) []Exercise {
-	// Simplified logic to increase exercise intensity
+	newExercises := make([]Exercise, len(exercises))
 	for i, ex := range exercises {
+		newIntensity := ex.Intensity
 		switch ex.Intensity {
 		case "Low":
-			exercises[i].Intensity = "Medium"
+			newIntensity = "Medium"
 		case "Medium":
-			exercises[i].Intensity = "High"
+			newIntensity = "High"
+		}
+		newExercises[i] = Exercise{
+			Name:      ex.Name,
+			Sets:      ex.Sets,
+			Reps:      ex.Reps,
+			Intensity: newIntensity,
 		}
 	}
-	return exercises
+	return newExercises
 }
 
 func saveToFile() error {
@@ -132,15 +130,13 @@ func saveToFile() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile("userProgress.json", data, 0644)
+	return os.WriteFile("userProgress.json", data, 0644)
 }
 
 func readFromFile() error {
-	file, err := ioutil.ReadFile("userProgress.json")
+	file, err := os.ReadFile("userProgress.json")
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(file, &usersProgress)
 }
-
-// In a real application, init or main should call readFromFile to load existing data.
