@@ -6,6 +6,7 @@ import (
     "net/http"
     "net/http/httptest"
     "os"
+    "strings"
     "sync"
     "testing"
 
@@ -13,98 +14,94 @@ import (
     "github.com/stretchr/testify/assert"
 )
 
-// Define a simple in-memory cache structure
-type Cache struct {
+type InMemoryCache struct {
     sync.Mutex
-    data map[string]string
+    items map[string]string
 }
 
-// Initialize a new cache
-func NewCache() *Cache {
-    return &Cache{
-        data: make(map[string]string),
+func NewInMemoryCache() *InMemoryCache {
+    return &InMemoryCache{
+        items: make(map[string]string),
     }
 }
 
-// Get data from the cache
-func (c *Cache) Get(key string) (string, bool) {
-    c.Lock()
-    defer c.Unlock()
-    val, found := c.data[key]
-    return val, found
+func (cache *InMemoryCache) GetItem(key string) (string, bool) {
+    cache.Lock()
+    defer cache.Unlock()
+    value, found := cache.items[key]
+    return value, found
 }
 
-// Set data in the cache
-func (c *Cache) Set(key string, value string) {
-    c.Lock()
-    defer c.Unlock()
-    c.data[key] = value
+func (cache *InMemoryCache) SetItem(key string, value string) {
+    cache.Lock()
+    defer cache.Unlock()
+    cache.items[key] = value
 }
 
 var (
-    workoutCache = NewCache()
-    goalsCache   = NewCache()
+    workoutDataCache = NewInMemoryCache()
+    userGoalsCache   = NewInMemoryCache()
 )
 
-type WorkoutData struct {
+type WorkoutDetails struct {
     Duration  float64 `json:"duration"`
     Intensity string  `json:"intensity"`
     Type      string  `json:"type"`
 }
 
-type UserGoals struct {
+type GoalsDetails struct {
     WeeklyDurationGoal float64 `json:"weeklyDurationGoal"`
     TypeGoal           string  `json:"typeGoal"`
 }
 
-func ProcessWorkoutData(w http.ResponseWriter, req *http.Request) {
-    var workout WorkoutData
+func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
+    var workout WorkoutDetails
     json.NewDecoder(req.Body).Decode(&workout)
     
-    workoutKey := fmt.Sprintf("%f%s%s", workout.Duration, workout.Intensity, workout.Type)
-    if cachedResponse, found := workoutCache.Get(workoutKey); found {
+    cacheKey := fmt.Sprintf("%f%s%s", workout.Duration, workout.Intensity, workout.Type)
+    if cachedData, found := workoutDataCache.GetItem(cacheKey); found {
         w.Header().Set("Content-Type", "application/json")
-        w.Write([]byte(cachedResponse))
+        w.Write([]byte(cachedData))
         return
     }
     
-    response, _ := json.Marshal(workout)
-    workoutCache.Set(workoutKey, string(response))
+    serializedData, _ := json.Marshal(workout)
+    workoutDataCache.SetItem(cacheKey, string(serializedData))
     
     w.Header().Set("Content-Type", "application/json")
-    w.Write(response)
+    w.Write(serializedData)
 }
 
-func TrackUserGoals(w http.ResponseWriter, req *http.Request) {
-    var goals UserGoals
+func HandleUserGoalsSubmission(w http.ResponseWriter, req *http.Request) {
+    var goals GoalsDetails
     json.NewDecoder(req.Body).Decode(&goals)
     
-    goalsKey := fmt.Sprintf("%f%s", goals.WeeklyDurationGoal, goals.TypeGoal)
-    if cachedResponse, found := goalsCache.Get(goalsKey); found {
+    cacheKey := fmt.Sprintf("%f%s", goals.WeeklyDurationGoal, goals.TypeGoal)
+    if cachedData, found := userGoalsCache.GetItem(cacheKey); found {
         w.Header().Set("Content-Type", "application/json")
-        w.Write([]byte(cachedResponse))
+        w.Write([]byte(cachedData))
         return
     }
     
-    response, _ := json.Marshal(goals)
-    goalsCache.Set(goalsKey, string(response))
+    serializedData, _ := json.Marshal(goals)
+    userGoalsCache.SetItem(cacheKey, string(serializedData))
     
     w.Header().Set("Content-Type", "application/json")
-    w.Write(response)
+    w.Write(serializedSata)
 }
 
-func setupRouter() *mux.Router {
-    r := mux.NewRouter()
-    r.HandleFunc("/processWorkoutData", ProcessWorkoutData).Methods("POST")
-    r.HandleFunc("/trackUserGoals", TrackUserGoals).Methods("POST")
-    return r
+func SetupRouter() *mux.Router {
+    router := mux.NewRouter()
+    router.HandleFunc("/submitWorkoutData", HandleWorkoutDataSubmission).Methods("POST")
+    router.HandleFunc("/submitUserGoals", HandleUserGoalsSubmission).Methods("POST")
+    return router
 }
 
-func TestProcessWorkoutData(t *testing.T) {
-    router := setupRouter()
+func TestHandleWorkoutDataSubmission(t *testing.T) {
+    router := SetupRouter()
 
     workoutJSON := `{"duration":45,"intensity":"high","type":"cardio"}`
-    req, _ := http.NewRequest("POST", "/processWorkoutData", strings.NewReader(workoutJSON))
+    req, _ := http.NewRequest("POST", "/submitWorkoutData", strings.NewReader(workoutJSON))
     resp := httptest.NewRecorder()
     router.ServeHTTP(resp, req)
 
@@ -113,11 +110,11 @@ func TestProcessWorkoutData(t *testing.T) {
     assert.JSONEq(t, workoutJSON, resp.Body.String())
 }
 
-func TestTrackUserGoals(t *testing.T) {
-    router := setup.','`.setupRouter()
+func TestHandleUserGoalsSubmission(t *testing.Br) {
+    router := SetupRouter()
 
     goalsJSON := `{"weeklyDurationGoal":150,"typeGoal":"strength"}`
-    req, _ := http.NewRequest("POST", "/trackUserGoals", strings.NewReader(goalsJSON))
+    req, _ := http.NewRequest("POST", "/submitUserGoals", strings.NewReader(goalsJSON))
     resp := httptest.NewRecorder()
     router.ServeHTTP(resp, req)
 
