@@ -20,11 +20,11 @@ type Exercise struct {
     Sets      int      `json:"sets"`
     Reps      int      `json:"reps"`
     Intensity string   `json:"intensity"` // Low, Medium, High
-    Feedback  Feedback `json:"feedback,omitempty"` // include feedback on the exercise
+    Feedback  Feedback `json:"feedback,omitempty"`
 }
 
 type Feedback struct {
-    Difficulty string `json:"difficulty"` // Easy, Just Right, Hard
+    Difficulty    string `json:"difficulty"`    // Easy, Just Right, Hard
     Effectiveness string `json:"effectiveness"` // Low, Medium, High
 }
 
@@ -33,47 +33,41 @@ type UserProgress struct {
     WorkoutPlans []WorkoutPlan `json:"workout_plans"`
 }
 
-var usersProgress []UserProgress
+var usersProgressRecords []UserProgress
 
 func main() {
-    // Example operations
     newExercise := Exercise{Name: "Push-ups", Sets: 3, Reps: 15, Intensity: "Medium"}
     newWorkoutPlan := WorkoutPlan{ID: "1", Date: time.Now(), Exercises: []Exercise{newExercise}, Goal: "Strength"}
-    AddWorkoutLog("user1", newWorkoutPlan)
+    AddUserWorkoutLog("user1", newWorkoutPlan)
 
     updatedExercise := Exercise{Name: "Push-ups", Sets: 4, Reps: 20, Intensity: "High"}
-    UpdateWorkoutLog("user1", "1", []Exercise{updatedExercise})
+    UpdateUserWorkoutLog("user1", "1", []Exercise{updatedExercise})
 
-    DeleteWorkoutLog("user1", "1")
+    DeleteUserWorkoutLog("user1", "1")
 
-    newPlan := SuggestWorkoutPlan("user1")
-    fmt.Println("Suggested Plan: ", newPlan)
-
-    // Let's assume reading and writing from a file works as expected, so you can persist your data.
+    suggestedPlan := SuggestUserWorkoutPlan("user1")
+    fmt.Println("Suggested Plan: ", suggestedRlan)
 }
 
-func AddWorkoutLog(userID string, plan WorkoutPlan) error {
-    for i, userProgress := range usersProgress {
+func AddUserWorkoutLog(userID string, workoutPlan WorkoutPlan) error {
+    for i, userProgress := range usersProgressRecords {
         if userProgress.UserID == userID {
-            usersProgress[i].WorkoutPlans = append(usersProgress[i].WorkoutPlans, plan)
-            return saveToFile()
+            usersProgressRecords[i].WorkoutPlans = append(usersProgressRecords[i].WorkoutPlans, workoutPlan)
+            return saveProgressToFile()
         }
     }
-    newUserProgress := UserProgress{
-        UserID:       userID,
-        WorkoutPlans: []WorkoutPlan{plan},
-    }
-    usersProgress = append(usersProgress, newUserProgress)
-    return saveToFile()
+    newUserProgress := UserProgress{UserID: userID, WorkoutPlans: []WorkworkoutPlan{workoutPlan}}
+    usersProgressRecords = append(usersProgressRecords, newUserProgress)
+    return saveProgressToFile()
 }
 
-func UpdateWorkoutLog(userID, planID string, exercises []Exercise) error {
-    for i, userProgress := range usersProgress {
+func UpdateUserWorkoutLog(userID, workoutPlanID string, exercises []Exercise) error {
+    for i, userProgress := range usersProgressRecords {
         if userProgress.UserID == userID {
             for j, plan := range userProgress.WorkoutPlans {
-                if plan.ID == planID {
-                    usersProgress[i].WorkoutPlans[j].Exercises = exercises
-                    return saveToFile()
+                if plan.ID == workoutPlanID {
+                    usersProgressRecords[i].WorkoutPlans[j].Exercises = exercises
+                    return saveProgressToFile()
                 }
             }
         }
@@ -81,13 +75,13 @@ func UpdateWorkoutLog(userID, planID string, exercises []Exercise) error {
     return errors.New("workout log not found")
 }
 
-func DeleteWorkoutLog(userID, planID string) error {
-    for i, userProgress := range usersProgress {
+func DeleteUserWorkoutLog(userID, workoutPlanID string) error {
+    for i, userProgress := range usersProgressRecords {
         if userProgress.UserID == userID {
             for j, plan := range userProgress.WorkoutPlans {
-                if plan.ID == planID {
-                    usersProgress[i].WorkoutPlans = append(usersProgress[i].WorkoutPlans[:j], usersProgress[i].WorkoutPlans[j+1:]...)
-                    return saveToFile()
+                if plan.ID == workoutPlanID {
+                    usersProgressRecords[i].WorkoutPlans = append(usersProgressRecords[i].WorkoutPlans[:j], usersProgressRecords[i].WorkoutPlans[j+1:]...)
+                    return saveProgressToFile()
                 }
             }
         }
@@ -95,15 +89,15 @@ func DeleteWorkoutLog(userID, planID string) error {
     return errors.New("workout log not found")
 }
 
-func SuggestWorkoutPlan(userID string) *WorkoutPlan {
-    for _, userProgress := range usersProgress {
+func SuggestUserWorkoutPlan(userID string) *WorkoutPlan {
+    for _, userProgress := range usersProgressRecords {
         if userProgress.UserID == userID {
             if len(userProgress.WorkoutPlans) > 0 {
                 lastPlan := userProgress.WorkoutPlans[len(userProgress.WorkoutPlans)-1]
                 suggestedPlan := WorkoutPlan{
                     ID:        fmt.Sprintf("%s-new", lastPlan.ID),
                     Date:      time.Now(),
-                    Exercises: varyExercises(increaseIntensity(lastPlan.Exercises)), // add exercise variations
+                    Exercises: varyExerciseOptions(increaseExerciseIntensity(lastPlan.Exercises)),
                     Goal:      lastPlan.Goal,
                 }
                 return &suggestedPlan
@@ -113,8 +107,8 @@ func SuggestWorkoutPlan(userID string) *WorkoutPlan {
     return nil
 }
 
-func increaseIntensity(exercises []Exercise) []Exercise {
-    newExercises := make([]Exercise, len(exercises))
+func increaseExerciseIntensity(exercises []Exercise) []Exercise {
+    updatedExercises := make([]Exercise, len(exercises))
     for i, ex := range exercises {
         newIntensity := ex.Intensity
         switch ex.Intensity {
@@ -123,38 +117,35 @@ func increaseIntensity(exercises []Exercise) []Exercise {
         case "Medium":
             newIntensity = "High"
         }
-        newExercises[i] = Exercise{
+        updatedExercises[i] = Exercise{
             Name:      ex.Name,
             Sets:      ex.Sets,
             Reps:      ex.Reps,
             Intensity: newIntensity,
         }
     }
-    return newExercises
+    return updatedExercises
 }
 
-// Vary exercises to include new variations
-func varyExercises(exercises []Exercise) []Exercise {
-    // You can expand this with real logic to select alternative exercises
+func varyExerciseOptions(exercises []Exercise) []Exercise {
     for i, ex := range exercises {
-        // Add a simple variation for demonstration
         exercises[i].Name = ex.Name + " Variation"
     }
     return exercises
 }
 
-func saveToFile() error {
-    data, err := json.Marshal(usersProgress)
+func saveProgressToFile() error {
+    data, err := json.Marshal(usersProgressRecords)
     if err != nil {
         return err
     }
     return os.WriteFile("userProgress.json", data, 0644)
 }
 
-func readFromFile() error {
+func readProgressFromFile() error {
     file, err := os.ReadFile("userProgress.json")
     if err != nil {
         return err
     }
-    return json.Unmarshal(file, &usersProgress)
+    return json.Unmarshal(file, &usersProgressRecords)
 }
