@@ -41,6 +41,11 @@ func (cache *InMemoryCache) SetItem(key string, value string) {
 var (
     workoutDataCache = NewInMemoryCache()
     userGoalsCache   = NewInMemoryCache()
+    submissionMetrics = map[string]int{
+        "workoutSubmissions": 0,
+        "goalsSubmissions":   0,
+    }
+    metricsMutex sync.Mutex
 )
 
 type WorkoutDetails struct {
@@ -54,9 +59,19 @@ type GoalsDetails struct {
     TypeGoal           string  `json:"typeGoal"`
 }
 
+func incrementMetric(metric string) {
+    metricsMutex.Lock()
+    defer metricsMutex.Unlock()
+    if _, ok := submissionMetrics[metric]; ok {
+        submissionMetrics[metric]++
+    }
+}
+
 func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
     var workout WorkoutDetails
     json.NewDecoder(req.Body).Decode(&workout)
+
+    incrementMetric("workoutSubmissions") // Incrementing submission count
     
     cacheKey := fmt.Sprintf("%f%s%s", workout.Duration, workout.Intensity, workout.Type)
     if cachedData, found := workoutDataCache.GetItem(cacheKey); found {
@@ -64,10 +79,10 @@ func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
         w.Write([]byte(cachedData))
         return
     }
-    
+
     serializedData, _ := json.Marshal(workout)
     workoutDataCache.SetItem(cacheKey, string(serializedData))
-    
+
     w.Header().Set("Content-Type", "application/json")
     w.Write(serializedData)
 }
@@ -75,6 +90,8 @@ func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
 func HandleUserGoalsSubmission(w http.ResponseWriter, req *http.Request) {
     var goals GoalsDetails
     json.NewDecoder(req.Body).Decode(&goals)
+
+    incrementMetric("goalsSubmissions") // Incrementing submission count
     
     cacheKey := fmt.Sprintf("%f%s", goals.WeeklyDurationGoal, goals.TypeGoal)
     if cachedData, found := userGoalsCache.GetItem(cacheKey); found {
@@ -82,17 +99,18 @@ func HandleUserGoalsSubmission(w http.ResponseWriter, req *http.Request) {
         w.Write([]byte(cachedData))
         return
     }
-    
+
     serializedData, _ := json.Marshal(goals)
     userGoalsCache.SetItem(cacheKey, string(serializedData))
-    
+
     w.Header().Set("Content-Type", "application/json")
-    w.Write(serializedSata)
+    // Fixed typo from w.Write(serializedSata) to correct variable name serializedData
+    w.Write(serializedData)
 }
 
 func SetupRouter() *mux.Router {
     router := mux.NewRouter()
-    router.HandleFunc("/submitWorkoutData", HandleWorkoutDataSubmission).Methods("POST")
+    router.HandleFunc("/submitWorkoutData", HandleWorkworkoutDataSubmission).Methods("POST")
     router.HandleFunc("/submitUserGoals", HandleUserGoalsSubmission).Methods("POST")
     return router
 }
@@ -108,9 +126,13 @@ func TestHandleWorkoutDataSubmission(t *testing.T) {
     assert.Equal(t, 200, resp.Code)
     assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
     assert.JSONEq(t, workoutJSON, resp.Body.String())
+    // Verifying increment in submissions
+    metricsMutex.Lock()
+    assert.Equal(t, 1, submissionMetrics["workoutSubmissions"])
+    metricsMutex.Unlock()
 }
 
-func TestHandleUserGoalsSubmission(t *testing.Br) {
+func TestHandleUserGoalsSubmission(t *testing.T) { // Fixed argument from `TestHandleUserGoalsSubmission(t *testing.Br)` to `t *testing.T`
     router := SetupRouter()
 
     goalsJSON := `{"weeklyDurationGoal":150,"typeGoal":"strength"}`
@@ -121,6 +143,10 @@ func TestHandleUserGoalsSubmission(t *testing.Br) {
     assert.Equal(t, 200, resp.Code)
     assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
     assert.JSONEq(t, goalsJSON, resp.Body.String())
+    // Verifying increment in submissions
+    metricsMutex.Lock()
+    assert.Equal(t, 1, submissionMetrics["goalsSubmissions"])
+    metricsMutex.Unlock()
 }
 
 func TestMain(m *testing.M) {
