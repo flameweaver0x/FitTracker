@@ -40,7 +40,7 @@ func (cache *InMemoryCache) SetItem(key string, value string) {
 
 var (
     workoutDataCache = NewInMemoryCache()
-    userGoalsCache   = NewInMemoryCache()
+    userGoalsCache   = NewInMemoryAdapter()
     submissionMetrics = map[string]int{
         "workoutSubmissions": 0,
         "goalsSubmissions":   0,
@@ -69,9 +69,12 @@ func incrementMetric(metric string) {
 
 func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
     var workout WorkoutDetails
-    json.NewDecoder(req.Body).Decode(&workout)
+    if err := json.NewDecoder(req.Body).Decode(&workout); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
 
-    incrementMetric("workoutSubmissions") // Incrementing submission count
+    incrementMetric("workoutSubmissions")
     
     cacheKey := fmt.Sprintf("%f%s%s", workout.Duration, workout.Intensity, workout.Type)
     if cachedData, found := workoutDataCache.GetItem(cacheKey); found {
@@ -80,7 +83,11 @@ func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
         return
     }
 
-    serializedData, _ := json.Marshal(workout)
+    serializedData, err := json.Marshal(workout)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
     workoutDataCache.SetItem(cacheKey, string(serializedData))
 
     w.Header().Set("Content-Type", "application/json")
@@ -89,9 +96,12 @@ func HandleWorkoutDataSubmission(w http.ResponseWriter, req *http.Request) {
 
 func HandleUserGoalsSubmission(w http.ResponseWriter, req *http.Request) {
     var goals GoalsDetails
-    json.NewDecoder(req.Body).Decode(&goals)
+    if err := json.NewDecoder(req.Body).Decode(&goals); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
 
-    incrementMetric("goalsSubmissions") // Incrementing submission count
+    incrementMetric("goalsSubmissions")
     
     cacheKey := fmt.Sprintf("%f%s", goals.WeeklyDurationGoal, goals.TypeGoal)
     if cachedData, found := userGoalsCache.GetItem(cacheKey); found {
@@ -100,17 +110,20 @@ func HandleUserGoalsSubmission(w http.ResponseWriter, req *http.Request) {
         return
     }
 
-    serializedData, _ := json.Marshal(goals)
+    serializedData, err := json.Marshal(goals)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
     userGoalsCache.SetItem(cacheKey, string(serializedData))
 
     w.Header().Set("Content-Type", "application/json")
-    // Fixed typo from w.Write(serializedSata) to correct variable name serializedData
     w.Write(serializedData)
 }
 
 func SetupRouter() *mux.Router {
     router := mux.NewRouter()
-    router.HandleFunc("/submitWorkoutData", HandleWorkworkoutDataSubmission).Methods("POST")
+    router.HandleFunc("/submitWorkoutData", HandleWorkoutDataSubmission).Methods("POST")
     router.HandleFunc("/submitUserGoals", HandleUserGoalsSubmission).Methods("POST")
     return router
 }
@@ -126,13 +139,12 @@ func TestHandleWorkoutDataSubmission(t *testing.T) {
     assert.Equal(t, 200, resp.Code)
     assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
     assert.JSONEq(t, workoutJSON, resp.Body.String())
-    // Verifying increment in submissions
     metricsMutex.Lock()
     assert.Equal(t, 1, submissionMetrics["workoutSubmissions"])
     metricsMutex.Unlock()
 }
 
-func TestHandleUserGoalsSubmission(t *testing.T) { // Fixed argument from `TestHandleUserGoalsSubmission(t *testing.Br)` to `t *testing.T`
+func TestHandleUserGoalsSubmission(t *testing.T) {
     router := SetupRouter()
 
     goalsJSON := `{"weeklyDurationGoal":150,"typeGoal":"strength"}`
@@ -143,7 +155,6 @@ func TestHandleUserGoalsSubmission(t *testing.T) { // Fixed argument from `TestH
     assert.Equal(t, 200, resp.Code)
     assert.Equal(t, "application/json", resp.Header().Get("Content-Type"))
     assert.JSONEq(t, goalsJSON, resp.Body.String())
-    // Verifying increment in submissions
     metricsMutex.Lock()
     assert.Equal(t, 1, submissionMetrics["goalsSubmissions"])
     metricsMutex.Unlock()
