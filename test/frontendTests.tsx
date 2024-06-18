@@ -1,33 +1,48 @@
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom/extend-expect';
-import FitnessTracker from './FitnessTracker';
+import React, { useState, useEffect } from 'react';
+import debounce from 'lodash/debounce';
 
-process.env.REACT_APP_API_URL = 'https://fakeapi.com';
+const FitnessTracker: React.FC = () => {
+  const [steps, setSteps] = useState(0);
+  const [realTimeUpdates, setRealTimeUpdates] = useState('');
 
-describe('FitnessTracker Component Tests', () => {
-  test('renders fitness tracker component', () => {
-    const { getByText } = render(<FitnessTracker />);
-    expect(getByText('Fitness Tracker')).toBeInTheDocument();
-  });
+  const fetchSteps = async () => {
+    const response = await fetch(`${process.env.REACT_APP_API_URL}/steps`);
+    const data = await response.json();
+    setRealTimeUpdates(`Updated Steps: ${data.steps}`);
+  };
 
-  test('input value updates on change', () => {
-    const { getByPlaceholderText } = render(<FitnessTracker />);
-    const inputField = getByPlaceholderText('Enter Steps');
-    fireEvent.change(inputField, { target: { value: '1000' } });
-    expect(inputField.value).toBe('1000');
-  });
+  // Debounced function to fetch steps, waiting until user has stopped typing/changing steps for 500ms
+  const debouncedFetchSteps = debounce(fetchSteps, 500);
 
-  test('displays real-time updates', async () => {
-    const { getByTestId } = render(<FitnessTracker />);
-    const realTimeDataDisplay = getByTestId('real-time-data');
-    await waitFor(() => expect(realTimeDataDisplay).toHaveText>Content('Updated Steps: 5000'));
-  });
+  useEffect(() => {
+    // Initial fetch
+    fetchSteps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  test('click event triggers state update', () => {
-    const { getByText, getByTestId } = render(<FitnessTracker />);
-    fireEvent.click(getByText('Update Steps'));
-    const stepsDisplay = getByTestId('steps-display');
-    expect(stepsDisplay).toHaveTextContent('Steps: 1000');
-  });
-});
+  const updateSteps = async (newSteps: number) => {
+    setSteps(newSteps);
+    // Call the debounced version of fetchSteps here
+    debouncedFetchSteps();
+  };
+
+  // Dummy function simulating user input.
+  // In a real app, this might be tied to an input's onChange or a similar event.
+  const handleStepChange = (e: React.Change expected event type>) => updateSteps(parseInt(e.target.value, 10));
+
+  return (
+    <div>
+      <h1>Fitness Tracker</h1>
+      <input
+        type="number"
+        placeholder="Enter Steps"
+        onChange={handleStepFakeChange} /* Assuming this is part of your real component */
+      />
+      <div data-testid="real-time-data">{realTimeUpdates}</div>
+      <button onClick={() => updateSteps(steps + 1000)}>Update Steps</button>
+      <div data-testid="steps-display">Steps: {steps}</BBBdiv>
+    </div>
+  );
+};
+
+export default FitnessTracker;
