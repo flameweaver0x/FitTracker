@@ -1,22 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import debounce from 'lodash/debounce';
 
 const FitnessTracker: React.FC = () => {
   const [steps, setSteps] = useState(0);
   const [realTimeUpdates, setRealTimeUpdates] = useState('');
 
-  const fetchSteps = async () => {
+  // Assuming fetchSteps could evolve to need argments for caching, implementing a basic cache system
+  const cache: { [key: string]: any } = {};
+
+  const memoizedFetchSteps = useCallback(async () => {
+    const cacheKey = 'fetchSteps';
+    if (cache[cacheKey]) {
+      setRealTimeUpdates(`Updated Steps: ${cache[cacheKey].steps}`);
+      return;
+    }
     const response = await fetch(`${process.env.REACT_APP_API_URL}/steps`);
     const data = await response.json();
+    cache[cacheKey] = data; // Store response in cache
     setRealTimeUpdates(`Updated Steps: ${data.steps}`);
-  };
+  }, [setRealTimeUpdates]);
 
-  // Debounced function to fetch steps, waiting until user has stopped typing/changing steps for 500ms
-  const debouncedFetchSteps = debounce(fetchSteps, 500);
+  // Debounced function to fetch steps, waiting until user has stopped triggering fetch for 500ms
+  const debouncedFetchSteps = debounce(memoizedFetchSteps, 500);
 
   useEffect(() => {
     // Initial fetch
-    fetchSteps();
+    memoizedFetchSteps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -26,9 +35,7 @@ const FitnessTracker: React.FC = () => {
     debouncedFetchSteps();
   };
 
-  // Dummy function simulating user input.
-  // In a real app, this might be tied to an input's onChange or a similar event.
-  const handleStepChange = (e: React.Change expected event type>) => updateSteps(parseInt(e.target.value, 10));
+  const handleStepChange = (e: React.ChangeEvent<HTMLInputElement>) => updateSteps(parseInt(e.target.value, 10));
 
   return (
     <div>
@@ -36,11 +43,11 @@ const FitnessTracker: React.FC = () => {
       <input
         type="number"
         placeholder="Enter Steps"
-        onChange={handleStepFakeChange} /* Assuming this is part of your real component */
+        onChange={handleStepChange} // Fixed incorrect function name
       />
       <div data-testid="real-time-data">{realTimeUpdates}</div>
       <button onClick={() => updateSteps(steps + 1000)}>Update Steps</button>
-      <div data-testid="steps-display">Steps: {steps}</BBBdiv>
+      <div data-testid="steps-display">Steps: {steps}</div> {/* Corrected closing tag */}
     </div>
   );
 };
